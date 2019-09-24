@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import pickle
 import sys
@@ -8,7 +9,6 @@ import operator
 import datetime
 import time
 from parse_blast_xml import parser
-blastdb = "/Bmo/ncbi_nt_database/nt"
 
 ### to add: argparse
 
@@ -17,18 +17,11 @@ blastdb = "/Bmo/ncbi_nt_database/nt"
 base = os.path.basename(sys.argv[1])
 name_file = os.path.splitext(base)[0]
 
-print(os.getcwd()+"/"+sys.argv[2])
 if not os.path.exists(os.getcwd()+"/"+sys.argv[2]):
     os.mkdir(os.getcwd()+"/"+sys.argv[2])
 name = os.path.join(os.getcwd()+"/"+sys.argv[2],  name_file)
 
 
-#if not os.path.exists(os.getcwd()+"/"+name_file+"_viralComplete_NB_out"):
-#    os.mkdir(os.getcwd()+"/"+name_file+"_viralComplete_NB_out")
-#name = os.path.join(os.getcwd()+"/"+name_file+"_viralComplete_NB_out",  name_file)
-
-
-#name = os.path.splitext(os.path.basename(sys.argv[1]))[0]
 threads = str(20)
 
 
@@ -38,17 +31,17 @@ for record in SeqIO.parse(open(sys.argv[1]),"fasta"):
 
 
 
-with open(os.path.dirname(os.path.abspath(__file__)) + "/viral_genomes_train.pkl", 'rb') as f:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/data/viral_genomes_train.pkl", 'rb') as f:
     genomes = pickle.load(f)
 
-with open(os.path.dirname(os.path.abspath(__file__)) + "/viral_genomes_len_train.pkl", 'rb') as f:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/data/viral_genomes_len_train.pkl", 'rb') as f:
     genomes_len = pickle.load(f)
 
-with open(os.path.dirname(os.path.abspath(__file__)) + "/proteins_to_genomes_train.pkl", 'rb') as f:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/data/proteins_to_genomes_train.pkl", 'rb') as f:
     proteins_to_genomes = pickle.load(f)
     
 
-with open(os.path.dirname(os.path.abspath(__file__)) + "/viral_genomes_train.pkl", 'rb') as f:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/data/viral_genomes_train.pkl", 'rb') as f:
     train = pickle.load(f)
 
 
@@ -64,19 +57,15 @@ if res != 0:
 
 #3. Blast predicted proteins against RefSeq viral proteins from the train dataset
 print ("Running BLAST...")
-blastdb = "/Nancy/mrayko/viruses/viralComplete/train_proteins_refseq"
+blastdb = os.path.dirname(os.path.abspath(__file__)) + "/blast_db/train_proteins_refseq"
 os.system ("blastp  -query " + name+"_proteins.fa" + " -db " + blastdb + " -evalue 1e-06 -outfmt 5 -out "+name+".xml -num_threads "+threads)
 
   # + " -num_alignments 5" )
 
 
 #4. Parse blast output
-#parser(name+".xml", os.getcwd()+"/"+name+"_viralComplete_NB_out")
-#print(name)
-#os.mkdir(os.getcwd()+"_viralComplete_NB_out")
-#parser(name+".xml", os.getcwd()+"_viralComplete_NB_out")
-parser(name+".xml", sys.argv[2])
 
+parser(name+".xml", sys.argv[2])
 
 #5. For each contig:
 #a) We take each protein and get list of viruses corresponding to protein-to-protein hits (from "proteins_to_genomes.pkl" - need to fix).
@@ -97,8 +86,7 @@ def get_blast_hits(blast_xml):
         
       for alignment in record.alignments:
         prot_to_viruses[query_id] += [proteins_to_genomes[alignment.title.split()[1]]]
-  print (datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
-  print("first part done")
+
 
 
   virus_to_viruses={}
@@ -108,13 +96,10 @@ def get_blast_hits(blast_xml):
             virus_to_viruses[virus_name] = {}        
         if len(prot_to_viruses[i]) > 0:
           virus_to_viruses[virus_name][i]=set(prot_to_viruses[i])
-  print (datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
-  print("second part done")
 
   return(virus_to_viruses)
 
 
-print (datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
 queries =  get_blast_hits(name+".xml")
     
 
@@ -128,13 +113,6 @@ queries_log_prob = {}
 # a) Create dict of probabilities - for each virus from training dataset assign eps or add 1/n where n is num of viral hits for each protein
 # b) Turn probabilities into logs - single value for each train virus.
 
-print (datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
-print("first part done")
-
-
-
-
-#for contig in queries:
 aposteriori = {} 
 for k in train:
  aposteriori[k] = {}
@@ -150,10 +128,6 @@ for k in train:
     aposteriori[k][contig] += [eps*n/(len(train)-n)] 
 
 
-
-
-#   for virus in queries[contig][protein]:
- #   aposteriori[virus][contig] += [1/n - eps] 
 
 # aposteriori = {}
 # for k in train:
@@ -171,10 +145,6 @@ for k in train:
     #    else:
      #       aposteriori[k] += [eps*n/(len(train)-n)] 
 
-print (datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
-print("third part done")
-
-# print(aposteriori)
 
 for contig in queries:    
  p_vir_genes={}
@@ -189,17 +159,11 @@ for contig in queries:
  
  queries_log_prob[contig] = p_vir_genes
 
-print (datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
-print("fourth part done")
-
 # Get argmax, print output
 final_table = []
 
 for i in queries_log_prob:
   print ("Query: ", i, real_len[i])
-  #maxValue = max(queries_log_prob[i].items(), key=operator.itemgetter(1))[1]
-  #print ([key for key in queries_log_prob[i].keys() if queries_log_prob[i][key]==maxValue])
-  #print ([genomes_len[key][0] for key in queries_log_prob[i].keys() if queries_log_prob[i][key]==maxValue])
   maxValue = max(queries_log_prob[i].items(), key=operator.itemgetter(1))
   if genomes_len[maxValue[0]][0]<= real_len[i]/0.9 and genomes_len[maxValue[0]][0]>= 0.9*real_len[i]:  
 
@@ -211,11 +175,6 @@ for i in queries_log_prob:
     final_table.append([i, real_len[i], "Partial", maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1]])
   
 
-
-  #print (maxValue[0], maxValue[1], genomes_len[maxValue[0]])
-
-#          final_table.append([k[0], genomes_len[k[0]][0], genomes_len[k[0]][1], k[1]])
-  
 
 result_file = name + "_result_table.csv"
 with open(result_file, 'w') as output:
