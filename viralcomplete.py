@@ -10,7 +10,6 @@ import datetime
 import time
 from parse_blast_xml import parser
 
-### to add: argparse
 
 #1. Input files and output directory
 
@@ -60,7 +59,6 @@ print ("Running BLAST...")
 blastdb = os.path.dirname(os.path.abspath(__file__)) + "/blast_db/train_proteins_refseq"
 os.system ("blastp  -query " + name+"_proteins.fa" + " -db " + blastdb + " -evalue 1e-06 -outfmt 5 -out "+name+".xml -num_threads "+threads)
 
-  # + " -num_alignments 5" )
 
 
 #4. Parse blast output
@@ -71,7 +69,6 @@ parser(name+".xml", sys.argv[2])
 #a) We take each protein and get list of viruses corresponding to protein-to-protein hits (from "proteins_to_genomes.pkl" - need to fix).
 #b) Then we combine these viral hits into the single set corresponding to each protein, and assign these sets to contig.
 
-### To fix - take into account number of hits and e-value/bitscore?
 
 def get_blast_hits(blast_xml):
   #Input - blast xml, output - dict of viruses and corresponding viral hits by proteins
@@ -128,31 +125,11 @@ for k in train:
     aposteriori[k][contig] += [eps*n/(len(train)-n)] 
 
 
-
-# aposteriori = {}
-# for k in train:
- #   aposteriori[k] = []
- #for protein in queries[contig]:
- #  n = len(queries[contig][protein])
-#   print (contig +  "No hits:" + str(eps*n/(len(train)-n)))
-#   print (contig +  "Hit:" + str(1/n - eps))
-
-  # for k in train:
-  #      if k in queries[contig][protein]:
-   #         aposteriori[k] += [1/n - eps]
-            #print(aposteriori[k])
-
-    #    else:
-     #       aposteriori[k] += [eps*n/(len(train)-n)] 
-
-
 for contig in queries:    
  p_vir_genes={}
  for virus in aposteriori:
   sum_log = 0
   for prob in aposteriori[virus][contig]:
-  #  sum_log = 0
-   # for prob in aposteriori[i]:
       sum_log += log(prob)
         
   p_vir_genes[virus] = sum_log
@@ -165,7 +142,7 @@ final_table = []
 for i in queries_log_prob:
   print ("Query: ", i, real_len[i])
   maxValue = max(queries_log_prob[i].items(), key=operator.itemgetter(1))
-  if genomes_len[maxValue[0]][0]<= real_len[i]/0.9 and genomes_len[maxValue[0]][0]>= 0.9*real_len[i]:  
+  if genomes_len[maxValue[0]][0]<= real_len[i]/0.8 and genomes_len[maxValue[0]][0]>= 0.8*real_len[i]:  
 
 
     print ("Full-length", maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1])
