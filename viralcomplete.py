@@ -18,14 +18,18 @@ from parse_blast_xml import parser
 def parse_args(args):
 ###### Command Line Argument Parser
     parser = argparse.ArgumentParser(description="BLAST-based viral completeness verification")
+    parser._action_groups.pop()
+    required_args = parser.add_argument_group('required arguments')
+    required_args.add_argument('-f', required = True, help='Input fasta file')
+    required_args.add_argument('-o', required = True, help='Output directory')
+    optional_args = parser.add_argument_group('optional arguments')
+    optional_args.add_argument('-t', help='Number of threads')   
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
         sys.exit(1)
-    parser.add_argument('-f', required = True, help='Input fasta file')
-    parser.add_argument('-o', required = True, help='Output directory')
-    parser.add_argument('-t', help='Number of threads')   
 
     return parser.parse_args()
+
 
 args = parse_args(sys.argv[1:])
 base = os.path.basename(args.f)
