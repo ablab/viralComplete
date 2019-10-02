@@ -2,6 +2,8 @@
 import os
 import pickle
 import sys
+import errno
+import argparse
 import csv
 from math import log, exp
 from Bio import SeqIO
@@ -13,34 +15,64 @@ from parse_blast_xml import parser
 
 #1. Input files and output directory
 
-base = os.path.basename(sys.argv[1])
+def parse_args(args):
+###### Command Line Argument Parser
+    parser = argparse.ArgumentParser(description="BLAST-based viral completeness verification")
+    if len(sys.argv)==1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    parser.add_argument('-f', required = True, help='Input fasta file')
+    parser.add_argument('-o', required = True, help='Output directory')
+    parser.add_argument('-t', help='Number of threads')   
+
+    return parser.parse_args()
+
+args = parse_args(sys.argv[1:])
+base = os.path.basename(args.f)
 name_file = os.path.splitext(base)[0]
+dirname = os.path.dirname(os.path.abspath(__file__))
+outdir = args.o
 
-if not os.path.exists(os.getcwd()+"/"+sys.argv[2]):
-    os.mkdir(os.getcwd()+"/"+sys.argv[2])
-name = os.path.join(os.getcwd()+"/"+sys.argv[2],  name_file)
+try:
+    os.makedirs(outdir)
+except OSError as e:
+    if e.errno != errno.EEXIST:
+        raise
+    
+name = os.path.join(outdir, name_file)
 
+#base = os.path.basename(sys.argv[1])
+#name_file = os.path.splitext(base)[0]
 
-threads = str(20)
+#if not os.path.exists(os.getcwd()+"/"+sys.argv[2]):
+#    os.mkdir(os.getcwd()+"/"+sys.argv[2])
+#name = os.path.join(os.getcwd()+"/"+sys.argv[2],  name_file)
+
+#threads = str(20)
+
+if args.t:
+        threads = str(args.t)
+else:
+        threads = str(20)
+
 
 
 real_len = {} # real length of input contigs
-for record in SeqIO.parse(open(sys.argv[1]),"fasta"):
+for record in SeqIO.parse(open(args.f),"fasta"):
     real_len[record.id] = len(record)
 
 
 
-with open(os.path.dirname(os.path.abspath(__file__)) + "/data/viral_genomes_train.pkl", 'rb') as f:
+with open(dirname + "/data/viral_genomes_train.pkl", 'rb') as f:
     genomes = pickle.load(f)
 
-with open(os.path.dirname(os.path.abspath(__file__)) + "/data/viral_genomes_len_train.pkl", 'rb') as f:
+with open(dirname + "/data/viral_genomes_len_train.pkl", 'rb') as f:
     genomes_len = pickle.load(f)
 
-with open(os.path.dirname(os.path.abspath(__file__)) + "/data/proteins_to_genomes_train.pkl", 'rb') as f:
+with open(dirname + "/data/proteins_to_genomes_train.pkl", 'rb') as f:
     proteins_to_genomes = pickle.load(f)
-    
 
-with open(os.path.dirname(os.path.abspath(__file__)) + "/data/viral_genomes_train.pkl", 'rb') as f:
+with open(dirname + "/data/viral_genomes_train.pkl", 'rb') as f:
     train = pickle.load(f)
 
 
@@ -48,7 +80,7 @@ with open(os.path.dirname(os.path.abspath(__file__)) + "/data/viral_genomes_trai
 #2. Gene prediction and protein extraction using Prodigal
 
 print ("Gene prediction...")
-res = os.system ("prodigal -p meta -i " + sys.argv[1] + " -a "+name+"_proteins.fa -o "+name+"_genes.fa 2>"+name+"_prodigal.log" )
+res = os.system ("prodigal -p meta -i " + args.f + " -a "+name+"_proteins.fa -o "+name+"_genes.fa 2>"+name+"_prodigal.log" )
 if res != 0:
    print ("Prodigal run failed")
    exit(1)   
@@ -56,14 +88,14 @@ if res != 0:
 
 #3. Blast predicted proteins against RefSeq viral proteins from the train dataset
 print ("Running BLAST...")
-blastdb = os.path.dirname(os.path.abspath(__file__)) + "/blast_db/train_proteins_refseq"
+blastdb = dirname + "/blast_db/train_proteins_refseq"
 os.system ("blastp  -query " + name+"_proteins.fa" + " -db " + blastdb + " -evalue 1e-06 -outfmt 5 -out "+name+".xml -num_threads "+threads)
 
 
 
 #4. Parse blast output
 
-parser(name+".xml", sys.argv[2])
+parser(name+".xml", outdir)
 
 #5. For each contig:
 #a) We take each protein and get list of viruses corresponding to protein-to-protein hits (from "proteins_to_genomes.pkl" - need to fix).
