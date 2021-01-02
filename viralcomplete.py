@@ -183,15 +183,9 @@ for i in queries_log_prob:
   else:
      result = "Partial"
 
-#  if genomes_len[maxValue[0]][0]<= real_len[i]/threshold and genomes_len[maxValue[0]][0]>= threshold*real_len[i]:  
-
 
   print (result, "{:.1%}".format(compl),  maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1])
-  final_table.append([i, real_len[i], "{:.1%}".format(compl), result, maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1]])
-#  else:
- #   print ("Partial", maxValue[0], genomes_len[maxValue[0]])
-  #  final_table.append([i, real_len[i],"{:.1%}".format(real_len[i]/genomes_len[maxValue[0]][0]), "Partial", maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1]])
-  
+  final_table.append([i, real_len[i], "{:.1%}".format(compl), result, maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1]])  
 
 
 result_file = name + "_result_table.csv"
