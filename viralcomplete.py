@@ -24,6 +24,7 @@ def parse_args(args):
     required_args.add_argument('-o', required = True, help='Output directory')
     optional_args = parser.add_argument_group('optional arguments')
     optional_args.add_argument('-t', help='Number of threads')   
+    optional_args.add_argument('-thr', help='Completeness threshold (0.0-1.0), default = 0.9')   
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
         sys.exit(1)
@@ -45,20 +46,16 @@ except OSError as e:
     
 name = os.path.join(outdir, name_file)
 
-#base = os.path.basename(sys.argv[1])
-#name_file = os.path.splitext(base)[0]
-
-#if not os.path.exists(os.getcwd()+"/"+sys.argv[2]):
-#    os.mkdir(os.getcwd()+"/"+sys.argv[2])
-#name = os.path.join(os.getcwd()+"/"+sys.argv[2],  name_file)
-
-#threads = str(20)
 
 if args.t:
         threads = str(args.t)
 else:
         threads = str(20)
 
+if args.thr:
+        threshold = float(args.thr)
+else:
+        threshold = 0.9
 
 
 real_len = {} # real length of input contigs
@@ -178,14 +175,22 @@ final_table = []
 for i in queries_log_prob:
   print ("Query: ", i, real_len[i])
   maxValue = max(queries_log_prob[i].items(), key=operator.itemgetter(1))
-  if genomes_len[maxValue[0]][0]<= real_len[i]/0.8 and genomes_len[maxValue[0]][0]>= 0.8*real_len[i]:  
 
 
-    print ("Full-length", maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1])
-    final_table.append([i, real_len[i], "Full-length", maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1]])
+  compl =  real_len[i]/genomes_len[maxValue[0]][0]
+  if compl >= threshold:
+     result = "Full-length"
   else:
-    print ("Partial", maxValue[0], genomes_len[maxValue[0]])
-    final_table.append([i, real_len[i], "Partial", maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1]])
+     result = "Partial"
+
+#  if genomes_len[maxValue[0]][0]<= real_len[i]/threshold and genomes_len[maxValue[0]][0]>= threshold*real_len[i]:  
+
+
+  print (result, "{:.1%}".format(compl),  maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1])
+  final_table.append([i, real_len[i], "{:.1%}".format(compl), result, maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1]])
+#  else:
+ #   print ("Partial", maxValue[0], genomes_len[maxValue[0]])
+  #  final_table.append([i, real_len[i],"{:.1%}".format(real_len[i]/genomes_len[maxValue[0]][0]), "Partial", maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1]])
   
 
 
