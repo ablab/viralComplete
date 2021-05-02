@@ -171,21 +171,36 @@ for contig in queries:
 
 # Get argmax, print output
 final_table = []
+complete_list = []
+partial_list = []
 
 for i in queries_log_prob:
   print ("Query: ", i, real_len[i])
   maxValue = max(queries_log_prob[i].items(), key=operator.itemgetter(1))
-
-
   compl =  real_len[i]/genomes_len[maxValue[0]][0]
   if compl >= threshold:
      result = "Full-length"
+     complete_list.append(i)
   else:
      result = "Partial"
+     partial_list.append(i)
 
 
   print (result, "{:.1%}".format(compl),  maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1])
   final_table.append([i, real_len[i], "{:.1%}".format(compl), result, maxValue[0], genomes_len[maxValue[0]][0], genomes_len[maxValue[0]][1]])  
+
+if not os.path.exists(outdir + "/Prediction_results_fasta/"):
+    os.mkdir(outdir + "/Prediction_results_fasta/")
+complete_fasta = []
+partial_fasta = []
+for record in SeqIO.parse(open(args.f),"fasta"):
+    if record.id in complete_list:
+        complete_fasta.append(record)
+    if record.id in partial_list:
+        partial_fasta.append(record)
+
+SeqIO.write(complete_fasta, outdir + "/Prediction_results_fasta/complete_viruses.fasta", 'fasta')
+SeqIO.write(partial_fasta, outdir + "/Prediction_results_fasta/partial_viruses.fasta", 'fasta') 
 
 
 result_file = name + "_result_table.csv"
