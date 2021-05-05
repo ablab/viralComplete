@@ -31,10 +31,14 @@ To work properly, viralComplete require Prodigal in your PATH environment variab
             Optional arguments:
             -h, --help  Show the help message and exit
             -t          Number of threads
+            -thr        Completeness threshold (0.0-1.0), default = 0.9
+
 
 
 Output file: comma-separated table <input_file>_result_table.csv
 
 Output format: contig name, prediction result, log probability, most probable virus name
  
-  
+Fasta files with prediction results can be found in the _Prediction_results_fasta_ folder
+
+viralComplete considers a virus complete if its length exceeds a specified threshold (% of the length of the closest known reference, 90% by default). Working with novel viruses, you may decrease the detection threshold (provided as an optional argument), to reduce number of potenital false negatives.
