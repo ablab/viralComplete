@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import os
 import pickle
 import sys
@@ -10,7 +11,9 @@ from Bio import SeqIO
 import operator
 import datetime
 import time
-from parse_blast_xml import parser
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'blast_db'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data'))
 
 
 #1. Input files and output directory
@@ -62,18 +65,18 @@ real_len = {} # real length of input contigs
 for record in SeqIO.parse(open(args.f),"fasta"):
     real_len[record.id] = len(record)
 
+# tr = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'db',"classifier_table_uniq.txt")
 
-
-with open(dirname + "/data/viral_genomes_train.pkl", 'rb') as f:
+with open(os.path.join(dirname, "..", "data/viral_genomes_train.pkl"), 'rb') as f:
     genomes = pickle.load(f)
 
-with open(dirname + "/data/viral_genomes_len_train.pkl", 'rb') as f:
+with open(os.path.join(dirname, "..", "data/viral_genomes_len_train.pkl"), 'rb') as f:
     genomes_len = pickle.load(f)
 
-with open(dirname + "/data/proteins_to_genomes_train.pkl", 'rb') as f:
+with open(os.path.join(dirname, "..", "data/proteins_to_genomes_train.pkl"), 'rb') as f:
     proteins_to_genomes = pickle.load(f)
 
-with open(dirname + "/data/viral_genomes_train.pkl", 'rb') as f:
+with open(os.path.join(dirname, "..", "data/viral_genomes_train.pkl"), 'rb') as f:
     train = pickle.load(f)
 
 
@@ -89,34 +92,31 @@ if res != 0:
 
 #3. Blast predicted proteins against RefSeq viral proteins from the train dataset
 print ("Running BLAST...")
-blastdb = dirname + "/blast_db/train_proteins_refseq"
-os.system ("blastp  -query " + name+"_proteins.fa" + " -db " + blastdb + " -evalue 1e-06 -outfmt 5 -out "+name+".xml -num_threads "+threads)
+blastdb = os.path.join(dirname, "..", "blast_db/train_proteins_refseq")
+os.system ("blastp  -query " + name + "_proteins.fa" + " -db " + blastdb + " -evalue 1e-06 -outfmt \"6 qseqid evalue qcovs pident stitle \" -out "+name+".blastp -num_threads "+threads)
 
-
+       
 
 #4. Parse blast output
 
-parser(name+".xml", outdir)
+#parser(name+".xml", outdir)
+
 
 #5. For each contig:
 #a) We take each protein and get list of viruses corresponding to protein-to-protein hits (from "proteins_to_genomes.pkl" - need to fix).
 #b) Then we combine these viral hits into the single set corresponding to each protein, and assign these sets to contig.
 
 
-def get_blast_hits(blast_xml):
-  #Input - blast xml, output - dict of viruses and corresponding viral hits by proteins
-  result_handle = open(blast_xml)
-  from Bio.Blast import NCBIXML
-  blast_records = NCBIXML.parse(result_handle)
-  prot_to_viruses = {} 
-  for record in blast_records:
-      query_id = record.query.split()[0]
+def get_blast_hits(infile):
+  #Input - blast results, output - dict of viruses and corresponding viral hits by proteins
+
+  prot_to_viruses = {}
+  for line in open (infile):
+      items = line.strip().split("\t")
+      query_id = items[0]
       if query_id not in prot_to_viruses:
         prot_to_viruses[query_id] = []
-        
-      for alignment in record.alignments:
-        prot_to_viruses[query_id] += [proteins_to_genomes[alignment.title.split()[1]]]
-
+      prot_to_viruses[query_id]+=[proteins_to_genomes[items[4]]]
 
 
   virus_to_viruses={}
@@ -127,10 +127,11 @@ def get_blast_hits(blast_xml):
         if len(prot_to_viruses[i]) > 0:
           virus_to_viruses[virus_name][i]=set(prot_to_viruses[i])
 
+  print (prot_to_viruses)
   return(virus_to_viruses)
 
 
-queries =  get_blast_hits(name+".xml")
+queries =  get_blast_hits(name+".blastp")
     
 
 #6. Build corresponding probability distribution
